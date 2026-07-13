@@ -1,0 +1,44 @@
+data:
+  source_image_dir: ${IMAGE_DIR}
+  source_depth_dir: ${DEPTH_DIR}
+  target_image_dir: ${TARGET_IMAGE_DIR}
+  target_depth_dir: ${TARGET_DEPTH_DIR}
+  pairing: magic
+  image_suffix: "img_*.tif"
+  depth_suffixes_to_try: ["_depth", "_bathy", "_gt", "_label"]
+  image_mode: rgb
+  reflectance_scale: 255.0
+  magic_negative_depth_valid: true
+
+train:
+  device: cuda
+  gpu_id: 0
+  seed: 42
+  batch_size: 2
+  num_workers: 0
+  epochs: 30
+  learning_rate: 0.0001
+  weight_decay: 0.0001
+  val_ratio: 0.2
+  patience: 25
+  normalize: true
+  normalize_depth: true
+  lambda_domain: 0.1
+  grl_alpha: 1.0
+
+model:
+  hidden_channels: [32, 64, 64, 32]
+  dropout: 0.05
+  use_coordconv: true
+  norm_type: group
+  num_groups: 8
+  domain_hidden: 128
+
+logging:
+  save_dir: checkpoints_da_sdb_depth
+  best_model_name: best_model.pt
+  last_model_name: last_model.pt
+
+infer:
+  checkpoint: checkpoints_da_sdb_depth/best_model.pt
+  output_dir: da_sdb_infer_depth

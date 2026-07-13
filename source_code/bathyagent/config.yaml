@@ -1,0 +1,121 @@
+model:
+  type: vlm_guided_bathymetry_autoencoder
+  image_channels: 3
+  reliability_channels: 1
+  encoder_in_channels: 4
+  
+  # Encoder: H×W → H/2×W/2 → H/4×W/4
+  encoder_channels: [64, 128, 256]
+  latent_dim: 256
+  
+  # Decoder: H/4 → H/2 → H
+  decoder_channels: [128, 64]
+  decoder_feature_dim: 64
+  reconstruction_channels: 3
+  reconstruction_output_activation: none
+  
+  text_dim: 384
+  align_dim: 256
+  expert_dim: 256
+  fusion_hidden_dim: 256
+  gating_hidden_dim: 128
+  dropout: 0.1
+  variance_floor: 1.0e-4
+  
+  use_llm_prior: true
+  local_prior_only: true
+  use_prior_confidence_in_gate: true
+  use_learned_soft_gate: true
+  use_reliability_mask_in_gate: true
+  multiply_alpha_by_reliability_mask: true
+  use_semantic_grounding: true
+  
+  # Autoencoder settings
+  use_reconstruction_loss: true
+  reconstruction_target: rgb
+  reconstruction_mask: water
+  use_encoder_skip_connections: false
+  
+  disable_geometric_prior_for_proposed: true
+
+train:
+  device: cuda
+  seeds: [42, 43, 44]
+  learning_rate: 1.0e-4
+  weight_decay: 1.0e-4
+  num_epochs: 100
+  batch_size: 2
+  gradient_clip_norm: 1.0
+  warmup_epochs: 5
+  scheduler: cosine
+  early_stopping_patience: 100
+  
+  lambda_align: 1.0e-2
+  lambda_recon: 5.0e-2
+  reconstruction_loss: l1
+
+split:
+  train_ratio: 0.70
+  val_ratio: 0.10
+  test_ratio: 0.20
+
+data:
+  image_dir: ${IMAGE_DIR}
+  depth_dir: ${DEPTH_DIR}
+  image_mode: rgb
+  modality: rgb
+  image_size: null
+  batch_size: 8
+  num_workers: 0
+  reflectance_scale: 255.0
+  selected_bands: null
+  image_suffix: "img_*.tif"
+  depth_suffixes_to_try: ["_depth", "_bathy", "_gt", "_label"]
+
+semantic:
+  semantic_dir: ${SEMANTIC_DIR}
+  reliability_suffix: "_M.npy"
+  disturbance_masks_suffix: "_R.npy"
+  depth_prior_suffix: "_prior.npy"
+  depth_prior_valid_suffix: "_prior_valid.npy"
+  depth_prior_conf_suffix: "_prior_conf.npy"
+  text_embeddings_suffix: "_text_embeddings.npy"
+  region_texts_suffix: "_region_texts.json"
+  water_suffix: "_water.npy"
+  require_semantic_if_enabled: true
+  require_prior_valid_mask: true
+  require_prior_subset_of_reliability: true
+
+debug:
+  assert_local_prior: true
+
+llm:
+  provider: qwen_or_openai
+  model_name: "Qwen/Qwen2.5-VL-72B-Instruct"
+  temperature: 0.1
+  top_p: 0.9
+  max_new_tokens: 1024
+  valid_depth_ranges:
+    agia_napa: [0.0, 30.29]
+    puck_lagoon: [0.0, 10.57]
+    unknown: [0.0, 30.29]
+
+text_encoder:
+  name: "sentence-transformers/all-MiniLM-L6-v2"
+  output_dim: 384
+  freeze: true
+
+vlm:
+  enabled: true
+  schema: "disturbance_local_prior"
+  allow_legacy_schema: false
+  require_problem_region_depth: true
+  overwrite_existing_annotations: false
+  openai_model: "gpt-4o"
+  annotation_json_dir: ${ANNOTATION_JSON_DIR}
+  min_side: 512
+  max_side: 1024
+  max_new_tokens: 1024
+
+logging:
+  base_dir: logs

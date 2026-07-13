@@ -1,0 +1,18 @@
+data:
+  image_dir: /mnt/disk3/anhnd2468/MagicBathyNet/agia_napa/img/aerial
+  depth_dir: /mnt/disk3/anhnd2468/MagicBathyNet/agia_napa/depth/aerial
+  pairing: magic
+  image_suffix: "img_*.tif"
+  depth_suffixes_to_try: ["_depth", "_bathy", "_gt", "_label"]
+  image_mode: rgb
+  reflectance_scale: 255.0
+  magic_negative_depth_valid: true
+
+train:
+  device: cuda
+  gpu_id: 0
+
+infer:
+  checkpoint: checkpoints_unet_single369_10ep/best_model.pt
+  output_dir: unet_infer_outputs_all_after_single369_10ep
+

@@ -1,0 +1,17 @@
+data:
+  train_image_dir: /mnt/disk3/anhnd2468/MagicBathyNet/puck_lagoon/img/test_depth
+  depth_dir: /mnt/disk3/anhnd2468/MagicBathyNet/puck_lagoon/depth/aerial
+  pairing: magic
+  image_suffix: "*.tif"
+  depth_suffixes_to_try: ["_depth", "_bathy", "_gt", "_label"]
+  image_mode: rgb
+  reflectance_scale: 255.0
+  magic_negative_depth_valid: true
+
+train:
+  include_xy: true
+
+infer:
+  rgb_only: false
+  checkpoint: checkpoints_knn_puck_lagoon_aerial_train/knn.joblib
+  output_dir: knn_infer_outputs_puck_test_depth

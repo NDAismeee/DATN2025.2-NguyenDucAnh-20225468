@@ -1,0 +1,39 @@
+data:
+  image_dir: ${IMAGE_DIR}
+  depth_dir: ${DEPTH_DIR}
+  pairing: magic
+  image_suffix: "img_*.tif"
+  depth_suffixes_to_try: ["_depth", "_bathy", "_gt", "_label"]
+  image_mode: rgb
+  reflectance_scale: 255.0
+  magic_negative_depth_valid: true
+
+train:
+  seed: 42
+  device: cpu
+  gpu_id: 0
+  val_infer_device: cpu
+  batch_size: 8192
+  epochs: 80
+  weight_decay: 0.0001
+  val_ratio: 0.2
+  pixels_per_image: 1000
+  include_xy: true
+  max_train_pixels: 20000
+
+model:
+  hidden_layer_sizes: [128, 64]
+  activation: relu
+  alpha: 0.0001
+  learning_rate_init: 0.001
+  max_iter: 10
+  early_stopping: true
+
+logging:
+  save_dir: checkpoints_mlp_depth
+  model_name: mlp.joblib
+
+infer:
+  device: cpu
+  checkpoint: checkpoints_mlp_depth/mlp.joblib
+  output_dir: mlp_infer_depth

@@ -1,0 +1,35 @@
+data:
+  image_dir: ${IMAGE_DIR}
+  depth_dir: ${DEPTH_DIR}
+  image_glob: img_*.tif
+  reflectance_scale: 255.0
+  val_ratio: 0.2
+train:
+  seed: 42
+  device: cuda
+  epochs: 50
+  batch_size: 2
+  learning_rate: 0.001
+  pixels_per_image: 2500
+  image_size: 128
+  limit_images: 0
+expert:
+  enabled: true
+  semantic_dir: ${SEMANTIC_DIR}
+  annotation_dir: ${ANNOTATION_JSON_DIR}
+  openai_model: ${OPENAI_MODEL}
+  openai_base_url: ${OPENAI_BASE_URL}
+  openai_timeout_sec: ${OPENAI_TIMEOUT_SEC}
+  noise_types:
+  - sun_glint
+  - shadow
+  - turbidity
+  - underwater_objects
+  depth_zones:
+  - nearshore
+  - mid
+  - offshore
+  contrastive_lambda: 0.01
+logging:
+  base_dir: runs_agia_napa
+model_key: proposed

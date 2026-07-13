@@ -1,0 +1,17 @@
+data:
+  image_dir: ${IMAGE_DIR}
+  depth_dir: ${DEPTH_DIR}
+  pairing: magic
+  image_suffix: "img_379.tif"
+  depth_suffixes_to_try: ["_depth", "_bathy", "_gt", "_label"]
+  image_mode: rgb
+  reflectance_scale: 255.0
+  magic_negative_depth_valid: true
+
+train:
+  device: cuda
+  gpu_id: 0
+
+infer:
+  checkpoint: checkpoints_dpt_single369_10ep/best_model.pt
+  output_dir: dpt_infer_outputs_after_single369_10ep

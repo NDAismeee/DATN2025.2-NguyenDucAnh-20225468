@@ -1,0 +1,34 @@
+data:
+  train_image_dir: /mnt/disk3/anhnd2468/MagicBathyNet/puck_lagoon/img/aerial_train
+  depth_dir: /mnt/disk3/anhnd2468/MagicBathyNet/puck_lagoon/depth/aerial/aerial
+  pairing: magic
+  image_suffix: "*.tif"
+  depth_suffixes_to_try: ["_depth", "_bathy", "_gt", "_label"]
+  image_mode: rgb
+  reflectance_scale: 255.0
+  magic_negative_depth_valid: true
+
+train:
+  device: cuda
+  gpu_id: 0
+  epochs: 50
+  batch_size: 2
+  val_ratio: 0.2
+  normalize: true
+  normalize_depth: true
+  patience: 25
+  learning_rate: 0.0001
+  weight_decay: 0.0001
+
+model:
+  hidden_channels: [32, 64, 64, 32]
+  use_batchnorm: false
+  dropout: 0.05
+  use_coordconv: true
+  norm_type: group
+  num_groups: 8
+
+logging:
+  save_dir: checkpoints_cnn_puck_lagoon_aerial_train
+  best_model_name: best_model.pt
+  last_model_name: last_model.pt

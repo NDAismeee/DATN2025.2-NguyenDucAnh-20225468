@@ -1,0 +1,33 @@
+data:
+  train_image_dir: /mnt/disk3/anhnd2468/MagicBathyNet/puck_lagoon/img/aerial_train
+  depth_dir: /mnt/disk3/anhnd2468/MagicBathyNet/puck_lagoon/depth/aerial
+  pairing: magic
+  image_suffix: "*.tif"
+  depth_suffixes_to_try: ["_depth", "_bathy", "_gt", "_label"]
+  image_mode: rgb
+  reflectance_scale: 255.0
+  magic_negative_depth_valid: true
+
+train:
+  seed: 42
+  val_ratio: 0.2
+  pixels_per_image: 5000
+  include_xy: true
+  max_train_pixels: 100000
+
+model:
+  n_neighbors: 5
+  weights: distance
+  algorithm: auto
+  leaf_size: 30
+  p: 2
+  metric: minkowski
+  n_jobs: -1
+
+logging:
+  save_dir: checkpoints_knn_puck_lagoon_aerial_train
+  model_name: knn.joblib
+
+infer:
+  checkpoint: checkpoints_knn_puck_lagoon_aerial_train/knn.joblib
+  output_dir: knn_infer_outputs

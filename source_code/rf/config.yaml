@@ -1,0 +1,30 @@
+data:
+  image_dir: ${IMAGE_DIR}
+  depth_dir: ${DEPTH_DIR}
+  pairing: magic
+  image_suffix: "img_*.tif"
+  depth_suffixes_to_try: ["_depth", "_bathy", "_gt", "_label"]
+  image_mode: rgb
+  reflectance_scale: 255.0
+  magic_negative_depth_valid: true
+
+train:
+  seed: 42
+  val_ratio: 0.2
+  pixels_per_image: 5000
+  include_xy: true
+  max_train_pixels: 200000
+
+model:
+  n_estimators: 200
+  max_depth: 24
+  min_samples_leaf: 2
+  n_jobs: -1
+
+logging:
+  save_dir: checkpoints_rf_depth
+  model_name: random_forest.joblib
+
+infer:
+  checkpoint: checkpoints_rf_depth/random_forest.joblib
+  output_dir: rf_infer_depth

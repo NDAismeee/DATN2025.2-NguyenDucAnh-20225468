@@ -1,0 +1,17 @@
+data:
+  image_dir: /mnt/disk3/anhnd2468/MagicBathyNet/agia_napa/img/aerial
+  depth_dir: /mnt/disk3/anhnd2468/MagicBathyNet/agia_napa/depth/aerial
+  pairing: magic
+  image_suffix: "img_*.tif"
+  depth_suffixes_to_try: ["_depth", "_bathy", "_gt", "_label"]
+  image_mode: rgb
+  reflectance_scale: 255.0
+  magic_negative_depth_valid: true
+
+train:
+  include_xy: true
+
+infer:
+  checkpoint: checkpoints_rf_single369/random_forest.joblib
+  output_dir: rf_infer_outputs_all_after_single369
+

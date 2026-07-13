@@ -1,0 +1,32 @@
+data:
+  image_dir: ${IMAGE_DIR}
+  depth_dir: ${DEPTH_DIR}
+  pairing: magic
+  image_suffix: "img_*.tif"
+  depth_suffixes_to_try: ["_depth", "_bathy", "_gt", "_label"]
+  image_mode: rgb
+  reflectance_scale: 255.0
+  magic_negative_depth_valid: true
+
+train:
+  seed: 42
+  device: cuda
+  gpu_id: 0
+  epochs: 32
+  batch_size: 2
+  learning_rate: 0.0001
+  val_ratio: 0.2
+  num_workers: 2
+
+model:
+  pretrained_weights: bathymetry_aerial_an
+  bilinear: false
+
+logging:
+  save_dir: checkpoints_unet_depth
+  best_name: best_model.pt
+  last_name: last_model.pt
+
+infer:
+  checkpoint: checkpoints_unet_depth/best_model.pt
+  output_dir: unet_infer_depth

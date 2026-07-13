@@ -1,0 +1,17 @@
+.env
+.env.*
+!.env.example
+
+annotations/
+semantic_maps/
+outputs/
+runs/
+checkpoints/
+logs/
+annotation_viz/
+llm_viz/
+__pycache__/
+*.pyc
+*.pt
+*.pth
+*.ckpt

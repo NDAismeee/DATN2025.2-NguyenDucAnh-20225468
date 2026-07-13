@@ -1,0 +1,30 @@
+data:
+  image_dir: ${IMAGE_DIR}
+  depth_dir: ${DEPTH_DIR}
+  pairing: magic
+  image_suffix: img_*.tif
+  depth_suffixes_to_try:
+  - _depth
+  - _bathy
+  - _gt
+  - _label
+  image_mode: rgb
+  modality: rgb
+  reflectance_scale: 255.0
+  magic_negative_depth_valid: true
+  train_ratio: 0.8
+  val_ratio: 0.2
+  batch_size: 2
+  num_workers: 0
+train:
+  device: cpu
+  gpu_id: 0
+  seed: 42
+logging:
+  base_dir: runs
+metrics:
+- mae
+- rmse
+- r2
+- bias
+- p95ae

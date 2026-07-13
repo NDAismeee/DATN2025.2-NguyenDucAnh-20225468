@@ -1,0 +1,52 @@
+data:
+  layout: paired_aerial_folders
+  aerial_train_image_dir: /mnt/disk3/anhnd2468/MagicBathyNet/agia_napa/img/aerial_test
+  aerial_train_depth_dir: /mnt/disk3/anhnd2468/MagicBathyNet/agia_napa/depth/aerial
+  pair_aux_root: null
+  val_fraction: 0.5
+  split_seed: 42
+  root_dir: data/scenes
+  train_split: train
+  val_split: val
+  test_split: test
+  image_size: [720, 720]
+  k_max: 8
+  text_dim: 384
+  batch_size: 4
+  num_workers: 0
+
+model:
+  hidden_dim: 256
+  text_dim: 384
+  gate_hidden: 128
+  gate_dropout: 0.1
+  use_range_loss: true
+  align_tau: 0.07
+
+training:
+  epochs: 100
+  warmup_epochs: 5
+  learning_rate: 0.0001
+  weight_decay: 0.0001
+  grad_clip: 1.0
+  early_stop_patience: 15
+  lambda_align: 0.01
+  lambda_int: 0.01
+  seed: 42
+  device: cuda
+
+output:
+  checkpoint_dir: outputs/agia_napa_aerial/checkpoints
+  prediction_dir: outputs/agia_napa_aerial/predictions
+  figure_dir: outputs/agia_napa_aerial/figures
+  metric_dir: outputs/agia_napa_aerial/metrics
+
+llm:
+  provider: openai
+  model: gpt-4o
+  max_tokens: 4096
+  temperature: 0.0
+  image_max_side: 1024
+  include_metadata: false
+  base_url: null
+  organization: null

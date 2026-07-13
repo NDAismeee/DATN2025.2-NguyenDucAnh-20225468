@@ -1,0 +1,119 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.python-version
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+.env
+.env.*
+!.env.example
+
+# IDE and OS files
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Build and packaging
+build/
+dist/
+*.egg-info/
+pip-wheel-metadata/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Logs and experiment outputs
+logs/
+runs/
+runs_*/
+runs_agia_napa*/
+outputs/
+infer_outputs/
+*_infer_depth/
+*_infer_depth*/
+*_infer_outputs/
+*_infer_outputs*/
+checkpoints/
+checkpoints_*/
+wandb/
+mlruns/
+tensorboard/
+lightning_logs/
+.cache/
+
+# Bathymetry generated artifacts
+annotations/
+annotation/
+annotation_hand/
+semantic_maps/
+annotation_viz/
+llm_viz/
+visualizations/
+figures/
+*_raw.txt
+*_summary.csv
+*_summary.json
+train_log.csv
+metrics.csv
+predictions.csv
+per_seed_metrics.csv
+aggregate_metrics.csv
+best_sample_id.txt
+
+# Model weights and serialized models
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.joblib
+*.pkl
+
+# Reports and generated visualizations
+*.pdf
+*.png
+
+# Large raster, array, and geospatial data
+*.tif
+*.tiff
+*.npy
+*.npz
+*.h5
+*.hdf5
+*.nc
+*.vrt
+*.aux.xml
+*.ovr
+
+# Local archives and downloaded datasets
+data/
+datasets/
+raw_data/
+processed_data/
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.7z
+*.rar
+
+# Project-specific binary artifacts
+bathymetry_aerial_an
+
+# Keep small examples if they are added intentionally
+!**/examples/**
+!**/sample_data/**

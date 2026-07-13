@@ -1,0 +1,854 @@
+from pathlib import Path
+
+content = r"""DETAILED CODING REQUIREMENTS AND PIPELINE DESIGN
+LLM-Guided Region-Adaptive Bathymetry Model
+
+1. PROJECT GOAL
+
+Build a complete deep learning pipeline for shallow-water depth prediction from high-resolution aerial RGB imagery. The model should combine:
+
+1. RGB visual information.
+2. A reliability/unreliable-region mask generated from LLM/VLM analysis.
+3. Region-level textual descriptions of environmental disturbances.
+4. LLM-derived physical depth priors.
+5. A neural depth prediction model with uncertainty estimation.
+6. A soft-gating mechanism that adaptively combines neural prediction and LLM-derived physical prior.
+
+The final system should output:
+
+- Predicted depth map.
+- Uncertainty map.
+- Gate/alpha map.
+- Optional visualizations for reliability mask, physical prior map, and error map.
+
+
+2. HIGH-LEVEL PIPELINE
+
+The full pipeline should follow this order:
+
+Step 1: Prepare raw data
+- Input aerial RGB image.
+- Ground-truth depth map.
+- Valid-depth mask indicating where depth labels exist.
+- Optional metadata, such as scene name, location, approximate depth range, and image resolution.
+
+Step 2: Query LLM/VLM offline
+- Use a vision-language model or an LLM with image/context input.
+- Ask it to identify noise-prone regions, such as sun glint, shadow, turbidity, dark artefacts, ambiguous seabed, or unclear underwater objects.
+- Ask it to generate textual descriptions for each region.
+- Ask it to infer scene-specific physical depth ranges for different coastal zones.
+
+Step 3: Convert LLM output into machine-readable tensors
+- Convert disturbance polygons into binary region masks.
+- Merge all disturbance masks into one unreliable-region mask M.
+- Convert depth-prior polygons into a pixel-level physical prior map d_phys.
+- Encode region descriptions into text embeddings using a pretrained text encoder.
+
+Step 4: Train the neural model
+- Input: RGB image + unreliable mask.
+- Extract visual features using CNN/U-Net encoder.
+- Align region visual features with text embeddings.
+- Fuse visual features with global expert text representation.
+- Predict mean depth and uncertainty.
+- Use a learned gate to combine predicted mean depth with physical prior.
+
+Step 5: Evaluate
+- Compute MAE, RMSE, R2, Bias/ME, and P95 absolute error.
+- Visualize predicted depth, uncertainty, alpha/gate map, and error map.
+
+Step 6: Save outputs
+- Save trained model checkpoint.
+- Save predicted depth maps.
+- Save visualizations.
+- Save metrics in CSV/JSON.
+
+
+3. RECOMMENDED PROJECT STRUCTURE
+
+Create the project using the following structure:
+
+bathymetry_llm/
+│
+├── configs/
+│   └── default.yaml
+│
+├── data/
+│   ├── dataset.py
+│   ├── transforms.py
+│   ├── polygon_to_mask.py
+│   └── prepare_scene.py
+│
+├── llm_pipeline/
+│   ├── prompt_template.txt
+│   ├── query_llm.py
+│   ├── validate_llm_output.py
+│   ├── build_prior_maps.py
+│   └── encode_text.py
+│
+├── models/
+│   ├── encoder.py
+│   ├── fusion.py
+│   ├── gate.py
+│   ├── losses.py
+│   └── llm_guided_bathymetry.py
+│
+├── scripts/
+│   ├── train.py
+│   ├── evaluate.py
+│   ├── predict.py
+│   └── visualize.py
+│
+├── utils/
+│   ├── metrics.py
+│   ├── io.py
+│   └── visualization.py
+│
+├── outputs/
+│   ├── checkpoints/
+│   ├── predictions/
+│   ├── figures/
+│   └── metrics/
+│
+└── README.md
+
+
+4. DATA FORMAT
+
+Each scene should have one folder:
+
+data/scenes/agia_napa_001/
+│
+├── image.png
+├── depth.npy
+├── valid_mask.npy
+├── metadata.json
+├── llm_output.json
+├── unreliable_mask.npy
+├── d_phys.npy
+├── region_masks.npy
+└── text_embeddings.npy
+
+4.1 image.png
+- RGB aerial image.
+- Shape after loading: [3, H, W].
+- Values should be normalized to [0, 1].
+
+4.2 depth.npy
+- Ground-truth depth map.
+- Shape: [1, H, W].
+- Unit: meters.
+- Invalid pixels should be ignored using valid_mask.
+
+4.3 valid_mask.npy
+- Binary mask.
+- Shape: [1, H, W].
+- 1 means depth label is available.
+- 0 means no ground-truth depth.
+
+4.4 unreliable_mask.npy
+- Binary mask generated from LLM/VLM regions.
+- Shape: [1, H, W].
+- 1 means unreliable/noisy region.
+- 0 means normal/reliable region.
+
+4.5 d_phys.npy
+- Pixel-level physical prior depth map.
+- Shape: [1, H, W].
+- For each prior region, use the midpoint:
+  d_phys = (depth_min + depth_max) / 2.
+- For pixels not covered by any prior region, use:
+  Option A: scene-level mean prior.
+  Option B: nearest-region interpolation.
+  Option C: set to neural prediction only by forcing alpha near 0.
+
+4.6 region_masks.npy
+- Region-level disturbance masks.
+- Shape: [K, H, W].
+- K is the number of detected disturbance regions.
+- Each mask corresponds to one textual description.
+
+4.7 text_embeddings.npy
+- Text embeddings of disturbance descriptions.
+- Shape: [K, D_text].
+- D_text depends on the text encoder, for example 384, 512, or 768.
+
+
+5. LLM/VLM OUTPUT FORMAT
+
+The most complete and code-friendly format is JSON.
+
+The LLM/VLM must return only valid JSON. No markdown. No explanations outside JSON.
+
+Recommended format:
+
+{
+  "scene_id": "agia_napa_001",
+  "image_assessment": {
+    "overall_condition": "heterogeneous shallow-water scene with visible turbidity and possible sun glint",
+    "confidence": 0.82
+  },
+  "disturbance_regions": [
+    {
+      "region_id": "disturbance_001",
+      "type": "sun_glint",
+      "description": "Bright reflective water surface likely causing unreliable spectral evidence for depth estimation.",
+      "polygon": [[120, 80], [260, 90], [250, 180], [130, 170]],
+      "severity": 0.85,
+      "expected_effect": "may cause underestimation or unstable depth prediction"
+    },
+    {
+      "region_id": "disturbance_002",
+      "type": "shadow",
+      "description": "Dark region caused by cast shadow, reducing visible bottom reflectance.",
+      "polygon": [[300, 210], [420, 220], [410, 330], [290, 315]],
+      "severity": 0.70,
+      "expected_effect": "may cause overestimation due to weak reflectance"
+    }
+  ],
+  "depth_prior_regions": [
+    {
+      "region_id": "prior_001",
+      "region_name": "nearshore shallow zone",
+      "polygon": [[0, 0], [512, 0], [512, 150], [0, 140]],
+      "depth_min": 0.0,
+      "depth_max": 1.5,
+      "rationale": "nearshore water is usually shallow and brighter in aerial imagery",
+      "confidence": 0.80
+    },
+    {
+      "region_id": "prior_002",
+      "region_name": "transition zone",
+      "polygon": [[0, 140], [512, 150], [512, 330], [0, 320]],
+      "depth_min": 1.5,
+      "depth_max": 3.0,
+      "rationale": "middle region shows gradual darkening and likely increased depth",
+      "confidence": 0.75
+    },
+    {
+      "region_id": "prior_003",
+      "region_name": "deeper offshore zone",
+      "polygon": [[0, 320], [512, 330], [512, 512], [0, 512]],
+      "depth_min": 3.0,
+      "depth_max": 6.0,
+      "rationale": "offshore area is visually darker and likely deeper",
+      "confidence": 0.70
+    }
+  ],
+  "global_depth_range": {
+    "depth_min": 0.0,
+    "depth_max": 6.0,
+    "unit": "meters"
+  },
+  "warnings": [
+    "Depth priors are conservative estimates and should be used as soft guidance only.",
+    "Disturbance polygons may be approximate and should not be treated as exact annotations."
+  ]
+}
+
+
+6. LLM/VLM PROMPT TEMPLATE
+
+Use this prompt in llm_pipeline/prompt_template.txt:
+
+You are a coastal bathymetry expert assisting a shallow-water depth prediction model.
+
+Task:
+Given an aerial RGB coastal image and optional metadata, identify regions where RGB-based depth prediction may be unreliable, and provide conservative physical depth priors for scene-specific coastal zones.
+
+You must return only valid JSON. Do not include markdown, comments, or explanations outside JSON.
+
+Required output fields:
+1. scene_id
+2. image_assessment
+3. disturbance_regions
+4. depth_prior_regions
+5. global_depth_range
+6. warnings
+
+For each disturbance region, provide:
+- region_id
+- type: one of ["sun_glint", "shadow", "turbidity", "dark_region", "ambiguous_object", "unclear_bottom", "other"]
+- description
+- polygon as pixel coordinates [[x1, y1], [x2, y2], ...]
+- severity from 0 to 1
+- expected_effect
+
+For each depth prior region, provide:
+- region_id
+- region_name
+- polygon as pixel coordinates
+- depth_min in meters
+- depth_max in meters
+- rationale
+- confidence from 0 to 1
+
+Rules:
+- Use conservative depth ranges.
+- Do not give overly precise depth values.
+- Depth ranges must be physically plausible.
+- Polygons must lie inside image boundaries.
+- The depth prior regions should cover most water pixels.
+- If uncertain, use wider depth ranges.
+- The output must be valid JSON only.
+
+
+7. VALIDATION RULES FOR LLM OUTPUT
+
+Implement validate_llm_output.py.
+
+The validation function should check:
+
+1. JSON is valid.
+2. Required keys exist.
+3. Each polygon has at least 3 points.
+4. Polygon coordinates are inside image size.
+5. depth_min < depth_max.
+6. depth_min >= 0.
+7. severity and confidence are between 0 and 1.
+8. Region IDs are unique.
+9. Disturbance type belongs to allowed list.
+10. At least one depth_prior_region exists.
+
+If validation fails:
+- Save the invalid response.
+- Either request the LLM again or apply a fallback rule-based prior.
+
+Fallback prior example:
+- Divide the image into three horizontal or distance-to-shore zones.
+- Assign conservative ranges:
+  nearshore: 0–1.5 m
+  transition: 1.5–3.0 m
+  offshore: 3.0–6.0 m
+
+
+8. CONVERTING POLYGONS TO MASKS
+
+Implement polygon_to_mask.py.
+
+Function requirements:
+
+def polygon_to_mask(polygon, height, width):
+    input:
+        polygon: list of [x, y] points
+        height: image height
+        width: image width
+    output:
+        binary mask with shape [H, W]
+
+Implementation options:
+- Use PIL.ImageDraw.
+- Use skimage.draw.polygon.
+- Use OpenCV fillPoly.
+
+The merged unreliable mask is:
+
+M = union of all disturbance region masks
+
+For region_masks.npy:
+- Store each individual disturbance mask separately.
+- Shape should be [K, H, W].
+
+For d_phys.npy:
+- For each depth_prior_region:
+    mask_z = polygon_to_mask(region polygon)
+    d_phys[mask_z == 1] = (depth_min + depth_max) / 2
+
+If regions overlap:
+- Prefer the region with higher confidence.
+- Or average the midpoint values weighted by confidence.
+
+
+9. TEXT EMBEDDING PIPELINE
+
+Implement encode_text.py.
+
+Recommended options:
+- sentence-transformers/all-MiniLM-L6-v2 with 384 dimensions.
+- CLIP text encoder with 512 dimensions.
+- Any stable text encoder as long as dimensions are fixed.
+
+Input:
+- List of disturbance descriptions.
+
+Output:
+- text_embeddings.npy with shape [K, D_text].
+
+Important:
+- Text encoder should be frozen.
+- Text embeddings should be computed offline before training.
+- Do not train the LLM or text encoder.
+
+
+10. MODEL INPUT PER BATCH
+
+The PyTorch Dataset should return:
+
+batch = {
+    "image": FloatTensor [B, 3, H, W],
+    "depth": FloatTensor [B, 1, H, W],
+    "valid_mask": FloatTensor [B, 1, H, W],
+    "unreliable_mask": FloatTensor [B, 1, H, W],
+    "d_phys": FloatTensor [B, 1, H, W],
+    "region_masks": FloatTensor [B, K, H, W],
+    "text_embeddings": FloatTensor [B, K, D_text],
+    "scene_id": string
+}
+
+Important issue:
+K may vary across scenes.
+
+Recommended solution:
+- Set K_max in config, for example K_max = 8.
+- If K < K_max, pad region_masks and text_embeddings with zeros.
+- If K > K_max, keep top K_max regions by severity.
+- Also return region_valid_mask [B, K] to ignore padded regions.
+
+
+11. MODEL ARCHITECTURE
+
+The model should include the following modules:
+
+11.1 Noise-aware visual encoder
+Input:
+- RGB image [B, 3, H, W]
+- unreliable mask [B, 1, H, W]
+
+Concatenate:
+- X_prime = concat(image, unreliable_mask)
+- Shape: [B, 4, H, W]
+
+Encoder:
+- Start with a simple CNN or U-Net encoder.
+- Recommended first implementation: shallow U-Net.
+- Output feature map:
+  F_vis [B, C, H, W]
+
+11.2 Region-level visual pooling
+For each disturbance region R_k:
+- Apply masked average pooling over F_vis.
+- Output:
+  v_k [B, K, C]
+
+11.3 Text projection
+Input:
+- text_embeddings [B, K, D_text]
+
+Projection:
+- Linear(D_text -> C)
+- ReLU
+- Linear(C -> C)
+
+Output:
+- z_t [B, K, C]
+
+11.4 Visual projection
+Input:
+- v_k [B, K, C]
+
+Projection:
+- Linear(C -> C)
+- ReLU
+- Linear(C -> C)
+
+Output:
+- z_v [B, K, C]
+
+11.5 Alignment loss
+Use cosine alignment:
+
+L_align = mean(1 - cosine_similarity(z_v, z_t))
+
+Only compute this over valid non-padded regions.
+
+11.6 Expert representation
+Aggregate text features:
+- Option A: mean pooling over valid text regions.
+- Option B: attention pooling.
+- Start with mean pooling for simplicity.
+
+Output:
+- V_expert [B, C]
+
+Expand to spatial map:
+- V_expert_map [B, C, H, W]
+
+11.7 Multimodal fusion
+Concatenate:
+- F_vis [B, C, H, W]
+- V_expert_map [B, C, H, W]
+
+Fusion input:
+- [B, 2C, H, W]
+
+Fusion module:
+- Conv2d(2C, C, kernel=3, padding=1)
+- ReLU
+- Conv2d(C, C, kernel=3, padding=1)
+- ReLU
+
+Output:
+- A [B, C, H, W]
+
+11.8 Depth and uncertainty head
+Input:
+- A [B, C, H, W]
+
+Output:
+- mu [B, 1, H, W]
+- log_var [B, 1, H, W]
+
+Convert log_var to variance:
+- var = softplus(log_var) + 1e-6
+
+11.9 Soft-gating module
+Input:
+- fused feature A
+- variance var
+- unreliable mask M
+
+Concatenate:
+- gate_input = concat(A, var, M)
+- Shape: [B, C+2, H, W]
+
+Gate network:
+- Conv2d(C+2, C, 3, padding=1)
+- ReLU
+- Conv2d(C, 1, 1)
+- Sigmoid
+
+Output:
+- alpha [B, 1, H, W]
+
+Final prediction:
+- depth_pred = (1 - alpha) * mu + alpha * d_phys
+
+Interpretation:
+- alpha close to 0: trust neural prediction.
+- alpha close to 1: trust LLM physical prior.
+
+
+12. LOSS FUNCTIONS
+
+12.1 Heteroscedastic Gaussian negative log-likelihood
+
+For valid depth pixels only:
+
+L_nll = mean_valid(
+    ((depth - depth_pred)^2) / (2 * var) + 0.5 * log(var)
+)
+
+Use valid_mask to ignore pixels without ground-truth depth.
+
+12.2 Alignment loss
+
+L_align = mean_valid_regions(1 - cosine_similarity(z_v, z_t))
+
+12.3 Optional prior range penalty
+
+This is optional but useful.
+
+If LLM gives d_min and d_max maps:
+- Penalize predictions outside the physical range.
+
+L_range = mean(
+    ReLU(d_min - depth_pred)^2 + ReLU(depth_pred - d_max)^2
+)
+
+12.4 Total loss
+
+Recommended initial version:
+
+L_total = L_nll + lambda_align * L_align
+
+Better full version:
+
+L_total = L_nll + lambda_align * L_align + lambda_range * L_range
+
+Recommended hyperparameters:
+- lambda_align = 1e-2
+- lambda_range = 1e-3
+- learning_rate = 1e-4
+- weight_decay = 1e-4
+- batch_size = 2 to 8 depending on GPU memory
+
+
+13. TRAINING SCRIPT REQUIREMENTS
+
+scripts/train.py should:
+
+1. Load config.
+2. Build train/validation datasets.
+3. Build model.
+4. Build optimizer AdamW.
+5. Train for N epochs.
+6. Save best checkpoint based on validation RMSE.
+7. Log losses:
+   - total loss
+   - nll loss
+   - alignment loss
+   - optional range loss
+8. Save validation metrics after each epoch.
+
+Pseudo-code:
+
+for epoch in range(num_epochs):
+    model.train()
+    for batch in train_loader:
+        outputs = model(batch)
+        loss = compute_total_loss(outputs, batch)
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+    val_metrics = evaluate(model, val_loader)
+    if val_metrics["rmse"] < best_rmse:
+        save_checkpoint(model)
+
+
+14. EVALUATION METRICS
+
+Implement utils/metrics.py.
+
+Metrics:
+
+MAE:
+- mean absolute error over valid pixels.
+
+RMSE:
+- square root of mean squared error.
+
+R2:
+- 1 - SSE/SST.
+
+Bias / ME:
+- mean(pred - target).
+
+P95AE:
+- 95th percentile of absolute error.
+
+All metrics must be computed only where valid_mask == 1.
+
+
+15. VISUALIZATION REQUIREMENTS
+
+scripts/visualize.py should generate:
+
+1. RGB image.
+2. Ground-truth depth map.
+3. Predicted depth map.
+4. Absolute error map.
+5. Uncertainty map.
+6. Alpha/gate map.
+7. Unreliable mask.
+8. Physical prior map.
+
+Save figures to:
+
+outputs/figures/{scene_id}/
+
+
+16. DEVELOPMENT PHASES
+
+To reduce risk, implement the model in phases.
+
+Phase 1: Basic depth model
+- Input: RGB only.
+- Model: U-Net or CNN.
+- Output: depth.
+- Loss: L1 or MSE.
+
+Phase 2: Add unreliable mask
+- Input: RGB + unreliable_mask.
+- Output: depth.
+- Compare with RGB-only baseline.
+
+Phase 3: Add uncertainty
+- Output: mu and variance.
+- Use heteroscedastic NLL.
+
+Phase 4: Add physical prior and soft gate
+- Load d_phys.
+- Predict alpha.
+- Final depth = (1-alpha) * mu + alpha * d_phys.
+
+Phase 5: Add text alignment
+- Load region masks and text embeddings.
+- Add masked average pooling.
+- Add visual-text projection heads.
+- Add L_align.
+
+Phase 6: Add full LLM pipeline
+- Query LLM/VLM.
+- Validate JSON.
+- Convert polygons to masks.
+- Build prior maps.
+- Encode text.
+- Train full model.
+
+
+17. CONFIG FILE EXAMPLE
+
+configs/default.yaml:
+
+data:
+  root_dir: "data/scenes"
+  image_size: [512, 512]
+  k_max: 8
+  text_dim: 384
+
+model:
+  hidden_dim: 128
+  encoder: "simple_unet"
+  use_uncertainty: true
+  use_gate: true
+  use_text_alignment: true
+
+training:
+  epochs: 100
+  batch_size: 4
+  learning_rate: 0.0001
+  weight_decay: 0.0001
+  lambda_align: 0.01
+  lambda_range: 0.001
+  num_workers: 4
+
+output:
+  checkpoint_dir: "outputs/checkpoints"
+  prediction_dir: "outputs/predictions"
+  figure_dir: "outputs/figures"
+  metric_dir: "outputs/metrics"
+
+
+18. IMPORTANT IMPLEMENTATION NOTES
+
+1. Use VLM if image-based region detection is required.
+A pure text-only LLM cannot reliably identify polygons from an image unless visual input or precomputed image information is provided.
+
+2. LLM output should be treated as soft guidance, not ground truth.
+The neural model should still learn from real depth labels.
+
+3. Do not allow LLM prior to dominate everywhere.
+The gate should learn when to use the prior.
+
+4. Always evaluate ablation models:
+- RGB only.
+- RGB + mask.
+- RGB + uncertainty.
+- RGB + prior + gate.
+- Full model with text alignment.
+
+5. Save alpha maps.
+Alpha maps are important for explaining where the model relies on physical priors.
+
+6. Save uncertainty maps.
+They are important for showing model confidence and robustness.
+
+7. Keep all LLM outputs reproducible.
+Save the raw JSON response for every scene.
+
+
+19. EXPECTED MODEL FILE: models/llm_guided_bathymetry.py
+
+This file should define:
+
+class LLMGuidedBathymetryModel(nn.Module):
+    forward(
+        image,
+        unreliable_mask,
+        d_phys,
+        region_masks,
+        text_embeddings,
+        region_valid_mask=None
+    )
+
+The forward function should return:
+
+{
+    "depth": depth_pred,
+    "mu": mu,
+    "var": var,
+    "alpha": alpha,
+    "z_v": z_v,
+    "z_t": z_t
+}
+
+
+20. EXPECTED DATASET FILE: data/dataset.py
+
+This file should define:
+
+class BathymetryDataset(torch.utils.data.Dataset):
+    __init__(self, root_dir, split, image_size, k_max, transform=None)
+    __len__(self)
+    __getitem__(self, idx)
+
+It should load:
+- image.png
+- depth.npy
+- valid_mask.npy
+- unreliable_mask.npy
+- d_phys.npy
+- region_masks.npy
+- text_embeddings.npy
+
+It should return tensors with correct shapes.
+
+
+21. EXPECTED LLM PIPELINE FILES
+
+21.1 query_llm.py
+Purpose:
+- Send image and metadata to LLM/VLM.
+- Save raw JSON response to llm_output.json.
+
+21.2 validate_llm_output.py
+Purpose:
+- Check whether JSON output is valid and usable.
+
+21.3 build_prior_maps.py
+Purpose:
+- Convert polygons to:
+  - unreliable_mask.npy
+  - region_masks.npy
+  - d_phys.npy
+  - optional d_min.npy and d_max.npy
+
+21.4 encode_text.py
+Purpose:
+- Encode disturbance descriptions into text_embeddings.npy.
+
+
+22. FINAL IMPLEMENTATION TARGET
+
+The final implementation should allow the following commands:
+
+Prepare LLM priors:
+python llm_pipeline/query_llm.py --scene data/scenes/agia_napa_001
+
+Build masks and priors:
+python llm_pipeline/build_prior_maps.py --scene data/scenes/agia_napa_001
+
+Encode text:
+python llm_pipeline/encode_text.py --scene data/scenes/agia_napa_001
+
+Train:
+python scripts/train.py --config configs/default.yaml
+
+Evaluate:
+python scripts/evaluate.py --config configs/default.yaml --checkpoint outputs/checkpoints/best.pt
+
+Predict:
+python scripts/predict.py --scene data/scenes/agia_napa_001 --checkpoint outputs/checkpoints/best.pt
+
+Visualize:
+python scripts/visualize.py --scene data/scenes/agia_napa_001
+
+
+23. SUMMARY FOR CODING AGENT
+
+Build a PyTorch project for LLM-guided bathymetry prediction. The model predicts shallow-water depth from aerial RGB imagery and uses LLM/VLM-derived information as soft physical guidance. The LLM/VLM should be queried offline to produce JSON containing disturbance polygons, textual descriptions, and region-specific depth ranges. These are converted into unreliable masks, region masks, physical prior maps, and text embeddings. The neural model takes RGB + unreliable mask as input, predicts mean depth and uncertainty, aligns region visual features with text embeddings, and uses a learned soft gate to combine the neural prediction with the LLM-derived physical prior. The system must include dataset loading, model implementation, training, evaluation, visualization, and reproducible LLM preprocessing scripts.
+"""
+
+path = Path("/mnt/data/llm_guided_bathymetry_code_requirements.txt")
+path.write_text(content, encoding="utf-8")
+path.as_posix()

@@ -1,0 +1,15 @@
+data:
+  source_image_dir: ${IMAGE_DIR}
+  source_depth_dir: ${DEPTH_DIR}
+  target_image_dir: ${IMAGE_DIR}
+  target_depth_dir: ${DEPTH_DIR}
+  pairing: magic
+  image_suffix: "img_379.tif"
+  depth_suffixes_to_try: ["_depth", "_bathy", "_gt", "_label"]
+  image_mode: rgb
+  reflectance_scale: 255.0
+  magic_negative_depth_valid: true
+
+infer:
+  checkpoint: checkpoints_da_sdb_single369_10ep/best_model.pt
+  output_dir: da_sdb_infer_outputs_after_single369_10ep
